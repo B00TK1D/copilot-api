@@ -10,7 +10,7 @@ Send a POST request to `http://localhost:8080/api` with the following JSON body:
 ```json
 {
     "prompt": "# Comment with a prompt\n\n"
-    "language": "python",
+    "language": "python"
 }
 ```
 
