@@ -2,6 +2,10 @@
 
 Provides a simple HTTP API to interface with GitHub Copilot, including native GitHub authentication.
 
+## Installing dependencies
+
+`pip install -r requirements.txt`
+
 ## Run
 `python3 api.py [port]`
 
