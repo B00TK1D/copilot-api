@@ -13,8 +13,8 @@ Provides a simple HTTP API to interface with GitHub Copilot, including native Gi
 Send a POST request to `http://localhost:8080/api` with the following JSON body:
 ```json
 {
-    "prompt": "# Comment with a prompt\n\n",
-    "language": "python"
+    "system_message": "You are a helpful assistant.",
+    "user_message": "Could you please help me create a Python script that takes a list of numbers as input and returns a list of those numbers sorted in ascending order? The script should handle both positive and negative numbers and should ignore any non-numeric values in the input list"
 }
 ```
 

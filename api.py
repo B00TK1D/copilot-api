@@ -5,7 +5,11 @@ import json
 import time
 import sys
 
+MODEL = 'gpt-4'
+
 token = None
+
+messages = []
 
 def setup():
     resp = requests.post('https://github.com/login/device/code', headers={
@@ -82,31 +86,50 @@ def token_thread():
         get_token()
         time.sleep(25 * 60)
     
-def copilot(prompt, language='python'):
-    global token
-    # If the token is None, get a new one
-    if token is None:
+def copilot(system_message_str, user_message_str):
+    global token, messages
+    # If the token is None or invalid, get a new one
+    if token is None or is_token_invalid(token):
         get_token()
 
+    system_message = {
+        "role": "system",
+        "content": system_message_str
+    }
+    
+    user_message = {
+        "content": str(user_message_str),
+        "role": "user"
+    }
+       
+    messages.append(system_message)
+
+    messages.append(user_message)
+
     try:
-        resp = requests.post('https://copilot-proxy.githubusercontent.com/v1/engines/copilot-codex/completions', headers={'authorization': f'Bearer {token}'}, json={
-            'prompt': prompt,
-            'suffix': '',
-            'max_tokens': 1000,
-            'temperature': 0,
-            'top_p': 1,
-            'n': 1,
-            'stop': ['\n'],
-            'nwo': 'github/copilot.vim',
-            'stream': True,
-            'extra': {
-                'language': language
+
+        headers = {
+                'authorization': f'Bearer {token}',
+                'editor-version': 'vscode/1.89.1'
             }
-        })
+        data = {
+                'intent': True,
+                'max_tokens': 4096,
+                'messages': messages,
+                'model': MODEL,
+                'n': 1,
+                'stream': True,
+                'temperature': 0,
+                'top_p': 1
+            }
+        
+        resp = requests.post('https://api.githubcopilot.com/chat/completions', headers=headers, json=data)
+        
     except requests.exceptions.ConnectionError:
         return ''
 
     result = ''
+    messages = []
 
     # Parse the response text, splitting it by newlines
     resp_text = resp.text.split('\n')
@@ -115,14 +138,33 @@ def copilot(prompt, language='python'):
         if line.startswith('data: {'):
             # Parse the completion from the line as json
             json_completion = json.loads(line[6:])
-            completion = json_completion.get('choices')[0].get('text')
-            if completion:
-                result += completion
+            # if choices is not empty
+            if json_completion.get('choices'):
+                completion = json_completion.get('choices')[0].get('delta').get('content')
+                if completion:
+                    result += completion
+                else:
+                    result += '\n'
             else:
                 result += '\n'
     
     return result
 
+# Check if the token is invalid through the exp field
+def is_token_invalid(token):
+    if token is None or 'exp' not in token or extract_exp_value(token) <= time.time():
+        return True
+    return False
+
+def extract_exp_value(token):
+    pairs = token.split(';')
+    
+    for pair in pairs:
+        key, value = pair.split('=')
+        if key.strip() == 'exp':
+            return int(value.strip())
+    
+    return None
 
 class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -134,11 +176,11 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         body_json = json.loads(body)
 
         # Get the prompt from the request body
-        prompt = body_json.get('prompt')
-        language = body_json.get('language', 'python')
+        system_message = body_json.get('system_message', "You are a helpful assistant.")
+        user_message = body_json.get('user_message')
 
         # Get the completion from the copilot function
-        completion = copilot(prompt, language)
+        completion = copilot(system_message, user_message)
 
         # Send the completion as the response
         self.send_response(200)
