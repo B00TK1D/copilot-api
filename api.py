@@ -85,7 +85,7 @@ def token_thread():
 def copilot(prompt, language='python'):
     global token
     # If the token is None, get a new one
-    if token is None:
+    if token is None or is_token_invalid(token):
         get_token()
 
     try:
@@ -123,6 +123,19 @@ def copilot(prompt, language='python'):
     
     return result
 
+# Check if the token is invalid through the exp field
+def is_token_invalid(token):
+    if token is None or 'exp' not in token or extract_exp_value(token) <= time.time():
+        return True
+    return False
+
+def extract_exp_value(token):
+    pairs = token.split(';')
+    for pair in pairs:
+        key, value = pair.split('=')
+        if key.strip() == 'exp':
+            return int(value.strip())
+    return None
 
 class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
