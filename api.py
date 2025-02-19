@@ -162,7 +162,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 def main():
     # Every 25 minutes, get a new token
-    threading.Thread(target=token_thread).start()
+    threading.Thread(target=token_thread, daemon=True).start()
     # Get the port to listen on from the command line
     if len(sys.argv) < 2:
         port = 8080
